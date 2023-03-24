@@ -1,59 +1,73 @@
-import os
-import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from itertools import zip_longest
 import pandas as pd
-from bs4 import BeautifulSoup
+import time
+import os
 
-# define the search string
-search_string = "your_article_name"
+# Read the Excel file with the article names
+df = pd.read_excel(r'C:\Users\marti\OneDrive\Desktop\andrea\search-rename\article-list.xlsx')
 
-# read the excel file
-excel_file = pd.read_excel('path/to/excel_file.xlsx')
+# Create two empty lists to store the downloaded and not downloaded articles
+downloaded_articles = []
+not_downloaded_articles = []
 
-# create a list of article names from the excel file
-article_names = excel_file['Article Name'].tolist()
+# Initialize the webdriver (you'll need to specify the path to your own driver)
+chromeOptions = Options()
+# chromeOptions.headless = False
+prefs = {"download.default_directory" : r"C:\Users\marti\OneDrive\Desktop\andrea\search-rename\downloaded_articles"}
+chromeOptions.add_experimental_option("prefs", prefs)
+service = Service(r'C:\Users\marti\OneDrive\Desktop\andrea\search-rename\chromedriver.exe')
+browser = webdriver.Chrome(service=service, options=chromeOptions)
 
-# create a dictionary to store the downloaded and not downloaded files
-downloaded_files = {}
-not_downloaded_files = {}
 
-# loop through the article names and search on sci-hub.ru
-for article_name in article_names:
-    # check if the article name contains the search string
-    if search_string in article_name:
-        # make a request to sci-hub.ru
-        url = f"https://sci-hub.ru/{article_name}"
-        response = requests.get(url)
-        
-        # check if the request was successful
-        if response.status_code == 200:
-            # parse the HTML response
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # find the link to the PDF file
-            pdf_link = soup.find('iframe')['src']
-            
-            # download the PDF file
-            pdf_response = requests.get(pdf_link)
-            if pdf_response.status_code == 200:
-                # save the PDF file with a new name
-                pdf_filename = f"{search_string} - {article_name}.pdf"
-                with open(pdf_filename, 'wb') as f:
-                    f.write(pdf_response.content)
-                
-                # add the file to the downloaded files dictionary
-                downloaded_files[article_name] = pdf_filename
-            else:
-                # add the file to the not downloaded files dictionary
-                not_downloaded_files[article_name] = "Failed to download PDF"
-        else:
-            # add the file to the not downloaded files dictionary
-            not_downloaded_files[article_name] = "Article not found on sci-hub.ru"
+# download pdfs
+for article_name in df['Article Name']:
+    try:
+        # Open the sci-hub website
+        browser.get('https://sci-hub.ru/')
+        # Wait for the page to load
+        time.sleep(30)
 
-# create a new file with the downloaded and not downloaded files
-with open(f"{search_string} - downloaded_files.txt", 'w') as f:
-    f.write("Downloaded files:\n")
-    for article_name, filename in downloaded_files.items():
-        f.write(f"{article_name}: {filename}\n")
-    f.write("\nNot downloaded files:\n")
-    for article_name, error_message in not_downloaded_files.items():
-        f.write(f"{article_name}: {error_message}\n")
+        # Find the search bar and enter the article name
+        search_bar = browser.find_element(by=By.NAME, value='request')
+        search_bar.send_keys(article_name)
+        search_bar.send_keys(Keys.RETURN)
+
+        # Wait for the page to load
+        time.sleep(10)
+
+        # Check if the article was found
+        save_button = browser.find_element(by=By.XPATH, value='/html/body/div[3]/div[1]/button')
+        # if browser.find_elements_by_css_selector('#article'):
+        # if save_button:
+        # Find the "Save" button and click it
+        save_button.click()
+
+        # Wait for the download to finish
+        time.sleep(10)
+
+        # Rename the downloaded file to the article name
+        old_file_name = 'sci-hub.pdf'
+        new_file_name = article_name + '.pdf'
+        os.rename(old_file_name, new_file_name)
+
+        # Add the article to the downloaded list
+        downloaded_articles.append(article_name)
+        # else:
+        #     # Add the article to the not downloaded list
+        #     not_downloaded_articles.append(article_name)
+    except:
+        # If there was an error, add the article to the not downloaded list
+        not_downloaded_articles.append(article_name)
+
+# log downloaded and not downloaded pdfs
+zipped = list(zip_longest(downloaded_articles, not_downloaded_articles, fillvalue=''))
+result_df = pd.DataFrame(zipped, columns=['Downloaded Articles', 'Not Downloaded Articles'])
+result_df.to_excel('result.xlsx', index=False)
+
+# Close the browser
+# browser.quit()
