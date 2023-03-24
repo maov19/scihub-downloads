@@ -8,8 +8,15 @@ import pandas as pd
 import time
 import os
 
-# Read the Excel file with the article names
-df = pd.read_excel(r'C:\Users\marti\OneDrive\Desktop\andrea\search-rename\article-list.xlsx')
+# location of folder for downloaded articles
+downloads_folder = r"C:\Users\marti\OneDrive\Desktop\andrea\search-rename\downloaded_articles"
+
+# location of excel file with the article names
+excel_articles = r'C:\Users\marti\OneDrive\Desktop\andrea\search-rename\article-list.xlsx'
+df = pd.read_excel(excel_articles)
+
+# location of webdriver 
+webdriver_location = r'C:\Users\marti\OneDrive\Desktop\andrea\search-rename\chromedriver.exe'
 
 # Create two empty lists to store the downloaded and not downloaded articles
 downloaded_articles = []
@@ -18,19 +25,21 @@ not_downloaded_articles = []
 # Initialize the webdriver (you'll need to specify the path to your own driver)
 chromeOptions = Options()
 # chromeOptions.headless = False
-prefs = {"download.default_directory" : r"C:\Users\marti\OneDrive\Desktop\andrea\search-rename\downloaded_articles"}
+prefs = {"download.default_directory" : downloads_folder}
 chromeOptions.add_experimental_option("prefs", prefs)
-service = Service(r'C:\Users\marti\OneDrive\Desktop\andrea\search-rename\chromedriver.exe')
+service = Service(webdriver_location)
 browser = webdriver.Chrome(service=service, options=chromeOptions)
 
-
 # download pdfs
-for article_name in df['Article Name']:
+for idx, row in df.iterrows():
     try:
+        article_id = row['id']
+        article_name = row['Article Name']
+
         # Open the sci-hub website
         browser.get('https://sci-hub.ru/')
         # Wait for the page to load
-        time.sleep(30)
+        time.sleep(10)
 
         # Find the search bar and enter the article name
         search_bar = browser.find_element(by=By.NAME, value='request')
@@ -40,7 +49,7 @@ for article_name in df['Article Name']:
         # Wait for the page to load
         time.sleep(10)
 
-        # Check if the article was found
+        # click on download button
         save_button = browser.find_element(by=By.XPATH, value='/html/body/div[3]/div[1]/button')
         # if browser.find_elements_by_css_selector('#article'):
         # if save_button:
@@ -51,15 +60,20 @@ for article_name in df['Article Name']:
         time.sleep(10)
 
         # Rename the downloaded file to the article name
-        old_file_name = 'sci-hub.pdf'
-        new_file_name = article_name + '.pdf'
-        os.rename(old_file_name, new_file_name)
+        # Step 1: Extract the desired name from the ID column
+        desired_name = str(article_id) + '.pdf'
+
+        # Step 2: Get the path of the most recently downloaded file
+        most_recent_file = max(os.listdir(downloads_folder))
+        most_recent_file_path = os.path.join(downloads_folder, most_recent_file)
+        # print(most_recent_file_path)
+
+        # Step 3: Rename the file with the desired name
+        new_file_path = os.path.join(downloads_folder, desired_name)
+        os.rename(most_recent_file_path, new_file_path)
 
         # Add the article to the downloaded list
         downloaded_articles.append(article_name)
-        # else:
-        #     # Add the article to the not downloaded list
-        #     not_downloaded_articles.append(article_name)
     except:
         # If there was an error, add the article to the not downloaded list
         not_downloaded_articles.append(article_name)
