@@ -1,3 +1,5 @@
+•This python script searches and renames articles in sci-hub and gives you back a list with succesful and unsuccesful downloads.
+
 Required files
 - article-list.xlsx
     - column 'Article Name': string to be researched
