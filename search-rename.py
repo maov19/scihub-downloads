@@ -37,17 +37,22 @@ for idx, row in df.iterrows():
         article_name = row['Article Name']
 
         # Open the sci-hub website
-        browser.get('https://sci-hub.ru/')
-        # Wait for the page to load
-        time.sleep(10)
-
+        browser.get('https://sci-hub.se/')
+        # Wait for the page to load, 40 secs for the 1st try
+        if idx == 0:
+            time.sleep(40)
+        else:
+            time.sleep(5)
         # Find the search bar and enter the article name
         search_bar = browser.find_element(by=By.NAME, value='request')
         search_bar.send_keys(article_name)
         search_bar.send_keys(Keys.RETURN)
 
-        # Wait for the page to load
-        time.sleep(10)
+        # Wait for the page to load, 40 secs for the 1st try
+        if idx == 0:
+            time.sleep(40)
+        else:
+            time.sleep(5)
 
         # click on download button
         save_button = browser.find_element(by=By.XPATH, value='/html/body/div[3]/div[1]/button')
@@ -57,16 +62,17 @@ for idx, row in df.iterrows():
         save_button.click()
 
         # Wait for the download to finish
-        time.sleep(10)
+        time.sleep(5)
 
         # Rename the downloaded file to the article name
         # Step 1: Extract the desired name from the ID column
         desired_name = str(article_id) + '.pdf'
 
-        # Step 2: Get the path of the most recently downloaded file
-        most_recent_file = max(os.listdir(downloads_folder))
+       # Step 2: Get the path of the most recently downloaded file
+        files = os.listdir(downloads_folder)
+        files.sort(key=lambda x: os.path.getmtime(os.path.join(downloads_folder, x)), reverse=True)
+        most_recent_file = files[0]
         most_recent_file_path = os.path.join(downloads_folder, most_recent_file)
-        # print(most_recent_file_path)
 
         # Step 3: Rename the file with the desired name
         new_file_path = os.path.join(downloads_folder, desired_name)
